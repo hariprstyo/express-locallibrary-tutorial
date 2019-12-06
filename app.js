@@ -13,7 +13,7 @@ var app = express();
 var mongoose = require('mongoose');
 var MongoDB = 'mongodb+srv://berracuda:VvkaT3QbPkQccSGM@cluster0-5gmoz.gcp.mongodb.net/test?retryWrites=true&w=majority';
 
-mongoose.connect(MongoDB, {useNewUrlParser:true});
+mongoose.connect(MongoDB, {useNewUrlParser:true, useUnifiedTopology: true});
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error: '));
