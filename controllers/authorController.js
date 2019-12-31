@@ -84,12 +84,32 @@ exports.author_create_post = [
     res.send('NOT IMPLEMENTED: Author create POST');
 };*/
 
-exports.author_delete_get = function(req, res) {
-    res.send('NOT IMPLEMENTED: Author delete GET');
+exports.author_delete_get = function(req, res, next) {
+    var id = mongoose.Types.ObjectId(req.params.id);
+    async.parallel({
+        author: function(callback) {
+            Author.findById(id).exec(callback);
+        },
+        author_books: function(callback) {
+            Book.find({'author': id})
+        }
+    },function(err, results) {
+        if(err) { return next(err); }
+        if(results.author==null) {
+            res.redirect('/catalog/authors');
+        }
+
+        res.render('author_delete', {title: 'Delete Author', author: results.author, author_books: results.author_books});
+    });
+    //res.send('NOT IMPLEMENTED: Author delete GET');
 };
 
-exports.author_delete_post = function(req, res) {
-    res.send('NOT IMPLEMENTED: Author delete POST');
+exports.author_delete_post = function(req, res, next) {
+    var id = mongoose.Types.ObjectId(req.body.authorid);
+    async.parallel({
+        author: function(callback) { Author.findById(id).exec(callback);}
+    });
+    //res.send('NOT IMPLEMENTED: Author delete POST');
 };
 
 exports.author_update_get = function(req, res) {

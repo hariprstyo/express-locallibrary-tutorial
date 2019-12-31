@@ -4,7 +4,8 @@ var Genre = require('../models/genre');
 var Bookinstance = require('../models/bookinstance');
 
 var async = require('async');
-var mongoose = require ('mongoose');
+var mongoose = require('mongoose');
+var validator = require('express-validator');
 
 exports.index = function(req, res) {
     async.parallel({
@@ -34,8 +35,9 @@ exports.book_list = function(req, res, next) {
     .populate('author')
     .exec(function(err, list_books) {
         if(err) {return next(err);}
-
+        console.log(list_books);
         res.render('book_list', {title: 'Book List', book_list: list_books});
+        //res.json(list_books);
     });
     //res.send('NOT IMPLEMENTED: book list');
 };
@@ -68,15 +70,80 @@ exports.book_detail = function(req, res, next) {
     //res.send('NOT IMPLEMENTED: book detail: ' + req.params.id);
 };
 
-exports.book_create_get = function(req, res) {
-    res.send('NOT IMPLEMENTED: book create GET');
+function getAuthorGenreList(callbackRender) {
+    async.parallel({
+        authors: function(callback) {
+            Author.find()
+            .sort([['family_name', 'ascending']])
+            .exec(callback);
+        },
+        genres: function(callback) {
+            Genre.find()
+            .sort([['name', 'ascending']])
+            .exec(callback);
+        }
+    },
+        function(err, results){
+            if(err) { return next(err); }
+            callbackRender(results.authors, results.genres);
+        });
+}
+
+exports.book_create_get = function(req, res, next) {
+    var callbackRender = function(authorsList, genresList) {
+        res.render('book_form', {title:'Create Book', authors: authorsList, genres: genresList});
+    }
+    getAuthorGenreList(callbackRender);
+    
+    //res.send('NOT IMPLEMENTED: book create GET');
 };
 
-exports.book_create_post = function(req, res) {
+exports.book_create_post = [
+    (req, res, next) => {
+        if(!(req.body.genre instanceof Array)) {
+            if(typeof req.body.genre === 'undefined') req.body.genre = [];
+            else req.body.genre=new Array(req.body.genre);
+        }
+        next();
+    },
+    validator.body('title', 'Title must not be empty').isLength({min:1}).trim(),
+    validator.body('author', 'Author must not be empty').isLength({min:1}).trim(),
+    validator.body('summary', 'Summary must not be empty').isLength({min:1}).trim(),
+    validator.body('isbn', 'ISBN must not be empty').isLength({min:1}).trim(),
+    validator.sanitizeBody('*').escape(),
+    (req, res, next) => {
+        const errors = validator.validationResult(req);
+
+        var book = new Book({
+            title: req.body.title,
+            author: req.body.author,
+            summary: req.body.summary,
+            isbn: req.body.isbn,
+            genre: req.body.genre
+        });
+
+        if(!errors.isEmpty()) {
+            const callbackRender = (authorsList, genresList, errorsList) => {
+                for(var i = 0; i < genresList.length; i++) {
+                    if(book.genre.indexOf(genresList[i]._id) > -1 ) { genresList[i].checked = true; }
+                }
+                res.render('book_form', {title:'Create Book', authors: authorsList, genres: genresList, errors: errorsList.array()});
+            };
+            getAuthorGenreList(callbackRender);
+            return;
+        } else {
+            book.save(function(err) {
+                if(err) { return next(err); }
+                res.redirect(book.url);
+            });
+        }
+
+    }
+];/*function(req, res) {
     res.send('NOT IMPLEMENTED: book create POST');
-};
+};*/
 
-exports.book_delete_get = function(req, res) {
+exports.book_delete_get = function(req, res, next) {
     res.send('NOT IMPLEMENTED: book delete GET');
 };
 
